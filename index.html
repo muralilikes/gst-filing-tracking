@@ -57,7 +57,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 const MONTHS=["April","May","June","July","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar"],DR=["GSTR1","GSTR3B","Payment"];
 const DC=[{k:'gst',label:'GST NO',show:1},{k:'name',label:'NAME',show:1},{k:'biz',label:'BUSINESS NAME',show:1},{k:'id',label:'ID',show:1},{k:'pass',label:'PASS',show:0,adm:1},{k:'status',label:'STATUS',show:1},{k:'type',label:'TYPE',show:1},{k:'due',label:'DUE',show:1,num:1},{k:'paid',label:'PAID',show:1,num:1}];
 /* Optional: paste your Web app URL between the quotes so everyone only has to sign in */
-const DEFAULT_URL='https://github.com/muralilikes/gst-filing-tracking.git';
+const DEFAULT_URL='https://script.google.com/macros/s/AKfycbyoZkw_m1FPKV-_ODnem0-XO4ipjIQz_fUUlUCOY5JSsWdob8kCkCsKuvZDXlcUMJ5KeQ/exec';
 const BUILT=new Set(DC.map(d=>d.k)),clone=o=>JSON.parse(JSON.stringify(o));
 let S={clients:[],filing:{},cols:clone(DC),rets:[...DR]},mode='',user=null,ready=false,tab='filing',fy='2025-26',mon='April',ret='GSTR1',flt='all',q='',timer,saved='',busy=false,again=false,sortK='',sortD=1,ed={},nr=[];
 const pend={},H={click:{},change:{},input:{}},Q=[],M={ren:[],del:[],fee:[]},mgr=()=>mode!=='sheets'||(user&&user.role==='management'),fee=()=>S.cols.some(c=>c.k==='due');
