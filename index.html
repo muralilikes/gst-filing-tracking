@@ -68,7 +68,7 @@ function norm(){if(!Array.isArray(S.cols))S.cols=clone(DC);if(mgr())DC.forEach((
  if(!Array.isArray(S.rets)||!S.rets.length)S.rets=[...DR];S.clients=S.clients||[];S.filing=S.filing||{};
  if(!Object.keys(S.filing).length)S.filing[fy]={};else if(!S.filing[fy])fy=Object.keys(S.filing).sort().pop();if(!S.rets.includes(ret))ret=S.rets[0]}
 /* Excel import / backup */
-function toWB(){const wb=XLSX.utils.book_new(),keys=MONTHS.flatMap(m=>S.rets.map(r=>m+' '+r)),A=XLSX.utils.aoa_to_sheet;
+function toWB(){const wb=XLSX.utils.book_new(),keys=MONTHS.flatMap(m=>[...S.rets,'FeeDue','FeePaid'].map(r=>m+' '+r)),A=XLSX.utils.aoa_to_sheet;
  const val=(c,x)=>x.num&&c[x.k]!==''&&c[x.k]!=null&&!isNaN(c[x.k])?Number(c[x.k]):(c[x.k]??'');
  XLSX.utils.book_append_sheet(wb,A([S.cols.map(x=>x.label),...S.clients.map(c=>S.cols.map(x=>val(c,x)))]),'Clients');
  XLSX.utils.book_append_sheet(wb,A([[JSON.stringify({cols:S.cols,rets:S.rets})]]),'Settings');
@@ -132,23 +132,27 @@ function filingView(){$('#view').innerHTML=`<div class="bar"><label>Financial ye
  ${mgr()?`<label>New year<input type="text" id="nfy" placeholder="2026-27" style="min-width:0;width:100px"></label><button data-a="afy" style="align-self:end">Add year</button>`:''}
  <label>Month<select data-a="smon">${opts(MONTHS,mon)}</select></label><label>Return<select data-a="sret">${opts(S.rets,ret)}</select></label>
  <label>Search<input type="search" data-a="sq" placeholder="Search by name or GSTIN" value="${esc(q)}" style="min-width:260px"></label></div><div class="sum" id="sum"></div>
- <div class="tw"><table><thead><tr><th>Client</th><th>${esc(lab('gst'))}</th><th>${esc(lab('type'))}</th><th>Filed?</th>${fee()?`<th>${esc(lab('due'))}</th><th>${esc(lab('paid'))}</th><th></th>`:''}</tr></thead><tbody id="rows"></tbody></table></div>`;rows()}
-H.change.sfy=el=>{fy=el.value;rows()};H.change.smon=el=>{mon=el.value;rows()};H.change.sret=el=>{ret=el.value;rows()};H.input.sq=el=>{q=el.value;rows()};
+ <div class="tw"><table><thead><tr><th>Client</th><th>${esc(lab('gst'))}</th><th>${esc(lab('type'))}</th><th>Filed?</th>${fee()?`<th>${esc(lab('due'))} (month)</th><th>${esc(lab('paid'))} (month)</th><th></th>`:''}</tr></thead><tbody id="rows"></tbody></table></div>`;rows()}
+H.change.sfy=el=>{fy=el.value;for(const k in pend)delete pend[k];rows()};H.change.smon=el=>{mon=el.value;for(const k in pend)delete pend[k];rows()};H.change.sret=el=>{ret=el.value;rows()};H.input.sq=el=>{q=el.value;rows()};
 H.click.afy=()=>{const y=$('#nfy').value.trim();if(!/^\d{4}-\d{2}$/.test(y))return msg('Type the year like 2026-27, then click Add year.');S.filing[y]=S.filing[y]||{};fy=y;if(mode==='sheets')post({action:'year',fy:y});queueSave();filingView();msg('Year '+y+' added')};
 H.click.flt=b=>{flt=b.dataset.v;rows()};
-function rows(){const d=S.filing[fy]||(S.filing[fy]={}),key=mon+'|'+ret,val=c=>(d[c.gst]||{})[key]||'',n={Yes:0,No:0,NR:0},t=nz(q);S.clients.forEach(c=>n[val(c)||'No']++);
+function rows(){const d=S.filing[fy]||(S.filing[fy]={}),key=mon+'|'+ret,val=c=>(d[c.gst]||{})[key]||'',fv=(c,k)=>(d[c.gst]||{})[mon+'|'+k]||'',n={Yes:0,No:0,NR:0},t=nz(q);S.clients.forEach(c=>n[val(c)||'No']++);
  const list=S.clients.filter(c=>(flt==='all'||(val(c)||'No')===flt)&&nz(c.name+c.biz+c.gst+c.id).includes(t)),ch=(v,l)=>`<span class="chip ${v}${flt===v?' sel':''}" data-a="flt" data-v="${v}">${l}</span>`;
  $('#sum').innerHTML=ch('all','All '+S.clients.length)+ch('Yes','Filed '+n.Yes)+ch('No','Not filed '+n.No)+ch('NR','Not required '+n.NR)+`<span class="chip all" style="cursor:default">Showing ${list.length}</span>${fee()?'<span class="chip all" id="tot" style="cursor:default"></span>':''}`;tot();
  $('#rows').innerHTML=list.length?list.map(c=>{const v=val(c),p=pend[c.gst],off=c.status&&c.status!=='active';return`<tr class="${off?'dim':''}${p?' pend':''}"><td>${esc(c.biz||c.name)}<br><small>${esc(c.name)}</small></td><td>${esc(c.gst)}</td><td>${esc(c.type)}${off?` <span class="badge">${esc(c.status)}</span>`:''}</td>
   <td><div class="seg">${['Yes','No','NR'].map(x=>`<button class="${x}${v===x?' on':''}${x==='No'&&!v?' def':''}" data-a="st" data-g="${esc(c.gst)}" data-v="${x}">${x}</button>`).join('')}</div></td>
-  ${fee()?`<td><input type="number" class="amt" data-a="dp" data-p="due" data-cg="${esc(c.gst)}" value="${esc(p?p.due:c.due)}" aria-label="Due"></td><td><input type="number" class="amt" data-a="dp" data-p="paid" data-cg="${esc(c.gst)}" value="${esc(p?p.paid:c.paid)}" aria-label="Paid"></td>
+  ${fee()?`<td><input type="number" class="amt" data-a="dp" data-p="due" data-cg="${esc(c.gst)}" value="${esc(p?p.due:fv(c,'FeeDue'))}" aria-label="Due"></td><td><input type="number" class="amt" data-a="dp" data-p="paid" data-cg="${esc(c.gst)}" value="${esc(p?p.paid:fv(c,'FeePaid'))}" aria-label="Paid"></td>
   <td><button class="p upd" data-a="upd" data-g="${esc(c.gst)}"${p?'':' disabled'}>Update</button></td>`:''}</tr>`}).join(''):`<tr><td colspan="${fee()?7:4}" class="empty">${S.clients.length?'No clients match.':'No clients yet. Add them in the Master sheet tab.'}</td></tr>`}
 H.click.st=b=>{const d=S.filing[fy],g=b.dataset.g,k=mon+'|'+ret,v=b.dataset.v;d[g]=d[g]||{};if(d[g][k]===v)delete d[g][k];else d[g][k]=v;rows();if(mode==='sheets')post({action:'setstatus',fy,gst:g,key:k,val:d[g][k]||''});else queueSave()};
 const inr=n=>n.toLocaleString('en-IN');
-function tot(){const s=k=>S.clients.reduce((a,c)=>a+(Number(c[k])||0),0),e=$('#tot');if(e)e.textContent=lab('due')+' '+inr(s('due'))+'  |  '+lab('paid')+' '+inr(s('paid'))}
-H.input.dp=el=>{const tr=el.closest('tr'),g=el.dataset.cg,c=S.clients.find(x=>x.gst===g),dv=tr.querySelector('[data-p=due]').value.trim(),pv=tr.querySelector('[data-p=paid]').value.trim(),ch=dv!==String(c.due??'')||pv!==String(c.paid??'');
+function tot(){const e=$('#tot');if(!e)return;const d=S.filing[fy]||{};let a=0,b=0,A=0,B=0;
+ Object.values(d).forEach(o=>{a+=Number(o[mon+'|FeeDue'])||0;b+=Number(o[mon+'|FeePaid'])||0;MONTHS.forEach(m=>{A+=Number(o[m+'|FeeDue'])||0;B+=Number(o[m+'|FeePaid'])||0})});
+ e.textContent=mon+': '+lab('due')+' '+inr(a)+'  |  '+lab('paid')+' '+inr(b)+'     Year: '+inr(A)+' / '+inr(B)}
+H.input.dp=el=>{const tr=el.closest('tr'),g=el.dataset.cg,c=S.clients.find(x=>x.gst===g),dv=tr.querySelector('[data-p=due]').value.trim(),pv=tr.querySelector('[data-p=paid]').value.trim(),ch=dv!==String(((S.filing[fy]||{})[g]||{})[mon+'|FeeDue']??'')||pv!==String(((S.filing[fy]||{})[g]||{})[mon+'|FeePaid']??'');
  if(ch)pend[g]={due:dv,paid:pv};else delete pend[g];tr.querySelector('[data-a=upd]').disabled=!ch;tr.classList.toggle('pend',ch)};
-H.click.upd=b=>{const g=b.dataset.g,tr=b.closest('tr'),c=S.clients.find(x=>x.gst===g);c.due=tr.querySelector('[data-p=due]').value.trim();c.paid=tr.querySelector('[data-p=paid]').value.trim();delete pend[g];b.disabled=true;tr.classList.remove('pend');tot();if(mode==='sheets')post({action:'setfee',gst:g,due:c.due,paid:c.paid});else queueSave();msg('Updated '+(c.biz||c.name),2500)};
+H.click.upd=b=>{const g=b.dataset.g,tr=b.closest('tr'),c=S.clients.find(x=>x.gst===g),d=S.filing[fy]=S.filing[fy]||{},o=d[g]=d[g]||{};
+ [['FeeDue','due'],['FeePaid','paid']].forEach(([k,f])=>{const v=tr.querySelector('[data-p='+f+']').value.trim(),key=mon+'|'+k;if(v)o[key]=v;else delete o[key];if(mode==='sheets')post({action:'setstatus',fy,gst:g,key,val:v})});
+ if(mode!=='sheets')queueSave();delete pend[g];b.disabled=true;tr.classList.remove('pend');tot();msg('Updated '+(c.biz||c.name)+' for '+mon,2500)};
 /* master sheet */
 function masterView(){const cs=S.cols.filter(c=>c.show);$('#view').innerHTML=`<div class="bar"><button class="p" data-a="mad">Add row</button><button class="p" data-a="msv" id="msv">Save changes</button><button data-a="mdc">Discard changes</button><button data-a="imp">Import from Excel</button>
  <label>Search<input type="search" data-a="mq" placeholder="Search by name or GSTIN" value="${esc(q)}" style="min-width:260px"></label></div>
