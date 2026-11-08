@@ -197,7 +197,7 @@ function post(op){Q.push(op);runQ()}
 function queueMaster(){if(!mgr())return;const i=Q.findIndex((o,j)=>o.action==='master'&&!(busy&&j===0));if(i>=0)Q.splice(i,1);Q.push({action:'master'});runQ()}
 async function runQ(){if(busy)return;busy=true;saved='Saving...';info();
  while(Q.length){const op=Q[0],body=op.action==='master'?{action:'master',data:masterPayload()}:op;
-  try{await api(body);if(op.action==='master'){M.ren.splice(0,body.data.ren.length);M.del.splice(0,body.data.del.length);M.fee.splice(0,body.data.fee.length)}Q.shift()}
+  try{for(let k=0;;k++){try{await api(body);break}catch(e){if(e.auth||k>=2||!/NetworkError|Failed to fetch|Load failed/i.test(e.message))throw e;await new Promise(r=>setTimeout(r,1500*(k+1)))}}if(op.action==='master'){M.ren.splice(0,body.data.ren.length);M.del.splice(0,body.data.del.length);M.fee.splice(0,body.data.fee.length)}Q.shift()}
   catch(e){busy=false;saved='NOT saved: click Save';info();if(e.auth){msg('Your session expired. Please sign in again.',6000);H.click.out()}else msg('Could not save: '+e.message,7000);return}}
  saved='Saved to Google Sheet '+tm();busy=false;info()}
 H.click.rf=()=>{if(Q.length||busy)return msg('Wait for saving to finish, then reload.');enter()};
